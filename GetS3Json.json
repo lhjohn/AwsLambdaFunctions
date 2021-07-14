@@ -1,0 +1,47 @@
+import json
+import urllib.parse
+import boto3
+import hashlib
+
+s3 = boto3.client('s3')
+
+def lambda_handler(event, context):
+    # Get bucket name
+    bucket = event['Records'][0]['s3']['bucket']['name']
+
+    # Get the key/file name
+    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
+
+    # Get etag (is this an MD5 hash of the bucket content? Can I use SHA256 or SHA512 instead?)
+    # metaData = s3.head_object(Bucket=bucket, Key=key)
+    # print(metaData)
+    # print(metaData['Metadata']['sha256'])
+
+    try:
+        # Fetch file from S3
+        # ToDo: Only doing this now because I am reading the JSON file.
+        # Needs to be replaced with reading user defined object meta data,
+        # because getting the whole object seems inefficient.
+        # Ref: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html
+        response = s3.get_object(Bucket=bucket, Key=key)
+
+        # Deserialize the file's content
+        text = response['Body'].read().decode()
+        data = json.loads(text)
+        execSum = data['result-1']['executionSummary']
+        sha256 = data['result-1']['fileIntegrity'][1]
+
+        print("Author: " + execSum['author'])
+        print("SHA256: " + sha256['hashKey'])
+        print("Bucket: " + bucket)
+        print("Key: " + key)
+
+        # Now insert data in QLDB
+
+
+
+        return 'Done'
+
+    except Exception as e:
+        print(e)
+        raise e
